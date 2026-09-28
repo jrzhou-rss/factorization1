@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代數公因式過濾器</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --border: #30363d;
+            --primary: #58a6ff;
+            --accent: #3fb950;
+            --gold: #f0883e;
+            --danger: #ff7b72;
+            --text: #c9d1d9;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            position: relative;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin: 0 0 20px 0;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #21262d;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #30363d;
+            border-color: #8b949e;
+        }
+
+        button.active {
+            background: var(--primary);
+            color: #0d1117;
+            border-color: var(--primary);
+        }
+
+        .btn-main {
+            background: linear-gradient(135deg, #238636, #2ea043);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(46,160,67,0.3);
+        }
+
+        .btn-main:hover {
+            background: linear-gradient(135deg, #2ea043, #3fb950);
+        }
+
+        .problem-card {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .problem-title {
+            font-size: 0.8rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .expression {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .term {
+            background: #21262d;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .filter-machine {
+            background: radial-gradient(circle at center, #161b22 0%, #0d1117 100%);
+            border: 2px dashed var(--primary);
+            border-radius: 16px;
+            padding: 25px;
+            position: relative;
+            text-align: center;
+            margin-bottom: 20px;
+            min-height: 220px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .filter-icon-container {
+            width: 90px;
+            height: 90px;
+            margin-bottom: 10px;
+        }
+
+        .filter-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .gear {
+            transform-origin: center;
+            transition: transform 1s ease;
+        }
+
+        .filtering .gear {
+            animation: spin 1.5s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .factor-result-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            min-height: 60px;
+        }
+
+        .hcf-part {
+            color: var(--gold);
+            text-shadow: 0 0 15px rgba(240, 136, 62, 0.5);
+            transform: scale(0);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .hcf-part.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .rem-part {
+            color: var(--accent);
+            transform: scale(0);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .rem-part.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .sign-highlight {
+            border: 2px solid var(--danger);
+            background: rgba(255, 123, 114, 0.2);
+            color: #ff948d;
+            padding: 0 8px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(255, 123, 114, 0.4);
+            animation: pop 0.3s ease;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .analysis-box {
+            background: #1c2128;
+            border-left: 4px solid var(--primary);
+            padding: 15px 20px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 20px;
+            display: none;
+            line-height: 1.6;
+        }
+
+        .analysis-item {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        .pill {
+            background: var(--border);
+            color: var(--primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .warning-tip {
+            background: rgba(255, 123, 114, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .controls { flex-direction: column; align-items: stretch; }
+            .btn-group { justify-content: center; }
+            .expression { font-size: 1.6rem; }
+            .factor-result-display { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+        代數公因式過濾器
+    </h1>
+
+    <div class="controls">
+        <div class="btn-group">
+            <button class="level-btn active" onclick="setLevel(1)">1. 基礎提純</button>
+            <button class="level-btn" onclick="setLevel(2)">2. 多變數組合</button>
+            <button class="level-btn" onclick="setLevel(3)">3. 負數抽出與變號 ⚠️</button>
+            <button class="level-btn" onclick="setLevel(4)">4. 三項多項式 👑</button>
+        </div>
+        <button class="btn-main" onclick="generateProblem()">🎲 產生新題目</button>
+    </div>
+
+    <div class="problem-card">
+        <div class="problem-title">原始代數多項式</div>
+        <div class="expression" id="exprBox"></div>
+    </div>
+
+    <div class="filter-machine" id="machine">
+        <div class="filter-icon-container">
+            <svg class="filter-svg" viewBox="0 0 100 100">
+                <polygon points="10,10 90,10 60,55 60,85 40,85 40,55" fill="none" stroke="#58a6ff" stroke-width="4" stroke-linejoin="round"/>
+                <line x1="25" y1="30" x2="75" y2="30" stroke="#3fb950" stroke-width="3" stroke-dasharray="4,4"/>
+                <line x1="35" y1="45" x2="65" y2="45" stroke="#3fb950" stroke-width="3" stroke-dasharray="4,4"/>
+                <g class="gear" transform="translate(50, 20)">
+                    <circle cx="0" cy="0" r="8" fill="none" stroke="#f0883e" stroke-width="2"/>
+                    <path d="M-2,-10 L2,-10 L2,-6 L-2,-6 Z M-10,-2 L-10,2 L-6,2 L-6,-2 Z M6,-2 L6,2 L10,2 L10,-2 Z M-2,6 L2,6 L2,10 L-2,10 Z" fill="#f0883e"/>
+                </g>
+            </svg>
+        </div>
+        <div id="machineStatus" style="color: #8b949e; font-size: 0.95rem;">按下按鈕將多項式放入過濾器</div>
+        
+        <div class="factor-result-display">
+            <span class="hcf-part" id="hcfPart"></span>
+            <span class="rem-part" id="remPart"></span>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 20px;">
+        <button id="actionBtn" class="btn-main" onclick="processStep()" style="width: 100%; max-width: 350px;">
+            🧪 放入過濾器過濾
+        </button>
+    </div>
+
+    <div class="analysis-box" id="analysisBox">
+        <div class="analysis-item" id="numStep"></div>
+        <div class="analysis-item" id="varStep"></div>
+        <div class="warning-tip" id="warningTip" style="display: none;"></div>
+    </div>
+</div>
+
+<script>
+    let currentLevel = 1;
+    let step = 0;
+    let pData = {};
+
+    function rand(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function gcd(a, b) {
+        a = Math.abs(a); b = Math.abs(b);
+        while (b) { let t = b; b = a % b; a = t; }
+        return a;
+    }
+
+    function gcd3(a, b, c) {
+        return gcd(gcd(a, b), c);
+    }
+
+    function formatCoef(n, varStr = '') {
+        if (varStr !== '') {
+            if (n === 1) return varStr;
+            if (n === -1) return `-${varStr}`;
+        }
+        return `${n}${varStr}`;
+    }
+
+    // 限定使用簡潔常見的字母組
+    const VAR_PAIRS = [
+        { v1: 'a', v2: 'b' },
+        { v1: 'x', v2: 'y' },
+        { v1: 'm', v2: 'n' },
+        { v1: 's', v2: 't' }
+    ];
+
+    function createData(level) {
+        if (level === 1) {
+            // Level 1: 豐富基礎題型 (2x & 4x, 3x & 6y, a & ab, x² & x, 3x & 6)
+            const type = rand(1, 5);
+            const op = rand(0, 1) === 0 ? '+' : '-';
+
+            if (type === 1) {
+                // 題型 A: 同字母不同係數，如 2x + 4x -> 2x(1 + 2)
+                const hcfN = rand(2, 5);
+                let r1 = rand(1, 3), r2 = rand(1, 4);
+                while (gcd(r1, r2) !== 1) { r1 = rand(1, 3); r2 = rand(1, 4); }
+                
+                return {
+                    hcf: `${hcfN}x`,
+                    rawTerms: [`${hcfN * r1}x`, `${op} ${hcfN * r2}x`],
+                    remHTML: `(${r1} ${op} ${r2})`,
+                    numText: `數字 HCF 為 <strong>${hcfN}</strong>`,
+                    varText: `兩項均含 x，字母 HCF 為 <strong>x</strong>`,
+                    hasNeg: false
+                };
+            } else if (type === 2) {
+                // 題型 B: 不同字母不同係數，如 3x + 6y -> 3(x + 2y)
+                const hcfN = rand(2, 6);
+                let r1 = rand(1, 4), r2 = rand(1, 4);
+                while (gcd(r1, r2) !== 1) { r1 = rand(1, 4); r2 = rand(1, 4); }
+
+                return {
+                    hcf: `${hcfN}`,
+                    rawTerms: [`${hcfN * r1}x`, `${op} ${hcfN * r2}y`],
+                    remHTML: `(${formatCoef(r1, 'x')} ${op} ${formatCoef(r2, 'y')})`,
+                    numText: `數字 HCF 為 <strong>${hcfN}</strong>`,
+                    varText: `字母 x 與 y 無共通因子`,
+                    hasNeg: false
+                };
+            } else if (type === 3) {
+                // 題型 C: 單字母與雙字母，如 a + ab -> a(1 + b) 或 2a + 4ab
+                const p = VAR_PAIRS[rand(0, 3)];
+                const hcfN = rand(1, 4);
+                let r1 = rand(1, 3), r2 = rand(1, 3);
+                while (gcd(r1, r2) !== 1) { r1 = rand(1, 3); r2 = rand(1, 3); }
+
+                const hcfStr = hcfN === 1 ? `${p.v1}` : `${hcfN}${p.v1}`;
+                return {
+                    hcf: hcfStr,
+                    rawTerms: [`${formatCoef(hcfN * r1, p.v1)}`, `${op} ${formatCoef(hcfN * r2, p.v1 + p.v2)}`],
+                    remHTML: `(${r1} ${op} ${formatCoef(r2, p.v2)})`,
+                    numText: hcfN === 1 ? `數字無共通公因數` : `數字 HCF 為 <strong>${hcfN}</strong>`,
+                    varText: `兩項均含 ${p.v1}，字母 HCF 為 <strong>${p.v1}</strong>`,
+                    hasNeg: false
+                };
+            } else if (type === 4) {
+                // 題型 D: 平方與單次方，如 x² + x -> x(x + 1)
+                const hcfN = rand(1, 3);
+                let r1 = rand(1, 3), r2 = rand(1, 3);
+                while (gcd(r1, r2) !== 1) { r1 = rand(1, 3); r2 = rand(1, 3); }
+
+                const hcfStr = hcfN === 1 ? `x` : `${hcfN}x`;
+                return {
+                    hcf: hcfStr,
+                    rawTerms: [`${formatCoef(hcfN * r1, 'x²')}`, `${op} ${formatCoef(hcfN * r2, 'x')}`],
+                    remHTML: `(${formatCoef(r1, 'x')} ${op} ${r2})`,
+                    numText: hcfN === 1 ? `數字無共通公因數` : `數字 HCF 為 <strong>${hcfN}</strong>`,
+                    varText: `變數取最低次方，字母 HCF 為 <strong>x</strong>`,
+                    hasNeg: false
+                };
+            } else {
+                // 題型 E: 數字與單字母，如 3x + 6 -> 3(x + 2)
+                const hcfN = rand(2, 7);
+                let r1 = rand(1, 4), r2 = rand(1, 4);
+                while (gcd(r1, r2) !== 1) { r1 = rand(1, 4); r2 = rand(1, 4); }
+
+                return {
+                    hcf: `${hcfN}`,
+                    rawTerms: [`${hcfN * r1}x`, `${op} ${hcfN * r2}`],
+                    remHTML: `(${formatCoef(r1, 'x')} ${op} ${r2})`,
+                    numText: `數字 HCF 為 <strong>${hcfN}</strong>`,
+                    varText: `字母部分無共通變數`,
+                    hasNeg: false
+                };
+            }
+        } else if (level === 2) {
+            // Level 2: 多變數多樣化型態 (ab, xy, mn, st)
+            const p = VAR_PAIRS[rand(0, VAR_PAIRS.length - 1)];
+            const type = rand(1, 5);
+            const hcfN = rand(1, 4);
+            
+            let r1 = rand(1, 3), r2 = rand(1, 3);
+            while (gcd(r1, r2) !== 1) { r1 = rand(1, 3); r2 = rand(1, 3); }
+
+            let hcfVar = "", t1 = "", t2 = "", remStr = "";
+
+            if (type === 1) {
+                // ab + a²b -> ab(1 + a)
+                hcfVar = `${p.v1}${p.v2}`;
+                t1 = formatCoef(hcfN * r1, `${p.v1}${p.v2}`);
+                t2 = formatCoef(hcfN * r2, `${p.v1}²${p.v2}`);
+                remStr = `(${r1} + ${formatCoef(r2, p.v1)})`;
+            } else if (type === 2) {
+                // x²y + xy² -> xy(x + y)
+                hcfVar = `${p.v1}${p.v2}`;
+                t1 = formatCoef(hcfN * r1, `${p.v1}²${p.v2}`);
+                t2 = formatCoef(hcfN * r2, `${p.v1}${p.v2}²`);
+                remStr = `(${formatCoef(r1, p.v1)} + ${formatCoef(r2, p.v2)})`;
+            } else if (type === 3) {
+                // m²n² + mn -> mn(mn + 1)
+                hcfVar = `${p.v1}${p.v2}`;
+                t1 = formatCoef(hcfN * r1, `${p.v1}²${p.v2}²`);
+                t2 = formatCoef(hcfN * r2, `${p.v1}${p.v2}`);
+                remStr = `(${formatCoef(r1, p.v1 + p.v2)} + ${r2})`;
+            } else if (type === 4) {
+                // s²t + st -> st(s + 1)
+                hcfVar = `${p.v1}${p.v2}`;
+                t1 = formatCoef(hcfN * r1, `${p.v1}²${p.v2}`);
+                t2 = formatCoef(hcfN * r2, `${p.v1}${p.v2}`);
+                remStr = `(${formatCoef(r1, p.v1)} + ${r2})`;
+            } else {
+                // ab² + b² -> b²(a + 1)
+                hcfVar = `${p.v2}²`;
+                t1 = formatCoef(hcfN * r1, `${p.v1}${p.v2}²`);
+                t2 = formatCoef(hcfN * r2, `${p.v2}²`);
+                remStr = `(${formatCoef(r1, p.v1)} + ${r2})`;
+            }
+
+            const hcfFull = hcfN === 1 ? hcfVar : `${hcfN}${hcfVar}`;
+
+            return {
+                hcf: hcfFull,
+                rawTerms: [t1, `+ ${t2}`],
+                remHTML: remStr,
+                numText: hcfN === 1 ? `數字無共通公因數` : `數字 HCF 為 <strong>${hcfN}</strong>`,
+                varText: `共通變數取最低指數：<strong>${hcfVar}</strong>`,
+                hasNeg: false
+            };
+        } else if (level === 3) {
+            // Level 3: 負數抽出與變號
+            const type = rand(1, 2);
+            const hcfN = rand(2, 5);
+            let r1 = rand(1, 4), r2 = rand(1, 4);
+            while (gcd(r1, r2) !== 1) { r1 = rand(1, 4); r2 = rand(1, 4); }
+
+            if (type === 1) {
+                return {
+                    hcf: `-${hcfN}x`,
+                    rawTerms: [`-${hcfN * r1}x²`, `- ${hcfN * r2}x`],
+                    remHTML: `(${formatCoef(r1, 'x')} <span class="sign-highlight">+</span> ${r2})`,
+                    numText: `首項為負數，抽出負數公因式：<strong>-${hcfN}</strong>`,
+                    varText: `字母共通項：<strong>x</strong>`,
+                    hasNeg: true,
+                    negNotice: `⚠️ 注意：抽出負號公因式（-${hcfN}x）後，括號內第二項從原本的負號變成 <span class="sign-highlight">+</span> 號！`
+                };
+            } else {
+                return {
+                    hcf: `-${hcfN}`,
+                    rawTerms: [`-${hcfN * r1}a`, `+ ${hcfN * r2}`],
+                    remHTML: `(${formatCoef(r1, 'a')} <span class="sign-highlight">-</span> ${r2})`,
+                    numText: `抽出負數公因式：<strong>-${hcfN}</strong>`,
+                    varText: `字母部分無共通變數`,
+                    hasNeg: true,
+                    negNotice: `⚠️ 注意：抽出負數公因式（-${hcfN}）後，原本正號項變成括號內的 <span class="sign-highlight">-</span> 號！`
+                };
+            }
+        } else {
+            // Level 4: 三項式
+            const hcfN = rand(2, 5);
+            let r1 = rand(1, 3), r2 = rand(1, 3), r3 = rand(1, 4);
+            while (gcd3(r1, r2, r3) !== 1) { r1 = rand(1, 3); r2 = rand(1, 3); r3 = rand(1, 4); }
+
+            return {
+                hcf: `${hcfN}x`,
+                rawTerms: [`${hcfN * r1}x³`, `- ${hcfN * r2}x²`, `+ ${hcfN * r3}x`],
+                remHTML: `(${formatCoef(r1, 'x²')} - ${formatCoef(r2, 'x')} + ${r3})`,
+                numText: `三項數字 (${hcfN*r1}, ${hcfN*r2}, ${hcfN*r3}) 的 HCF 為 <strong>${hcfN}</strong>`,
+                varText: `三項均含 x，最低指數為 <strong>x</strong>`,
+                hasNeg: false
+            };
+        }
+    }
+
+    function setLevel(lvl) {
+        currentLevel = lvl;
+        document.querySelectorAll('.level-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i + 1 === lvl);
+        });
+        generateProblem();
+    }
+
+    function generateProblem() {
+        pData = createData(currentLevel);
+        step = 0;
+
+        const exprBox = document.getElementById('exprBox');
+        exprBox.innerHTML = pData.rawTerms.map((t) => `<span class="term">${t}</span>`).join(' ');
+
+        document.getElementById('machineStatus').innerText = '按下按鈕將多項式放入過濾器';
+        
+        const hcfPart = document.getElementById('hcfPart');
+        const remPart = document.getElementById('remPart');
+        hcfPart.classList.remove('show');
+        remPart.classList.remove('show');
+        hcfPart.innerHTML = '';
+        remPart.innerHTML = '';
+
+        document.getElementById('machine').classList.remove('filtering');
+        document.getElementById('analysisBox').style.display = 'none';
+        document.getElementById('warningTip').style.display = 'none';
+
+        const btn = document.getElementById('actionBtn');
+        btn.innerText = '🧪 放入過濾器過濾';
+        btn.style.background = 'linear-gradient(135deg, #238636, #2ea043)';
+    }
+
+    function processStep() {
+        if (step === 0) {
+            step = 1;
+            const machine = document.getElementById('machine');
+            machine.classList.add('filtering');
+            document.getElementById('machineStatus').innerText = '⚙️ 過濾器運轉中... 正在提純公因式';
+
+            setTimeout(() => {
+                machine.classList.remove('filtering');
+                document.getElementById('machineStatus').innerText = '🎯 成功提純出公因式 (HCF)：';
+                
+                const hcfPart = document.getElementById('hcfPart');
+                hcfPart.innerText = pData.hcf;
+                hcfPart.classList.add('show');
+
+                document.getElementById('numStep').innerHTML = `<span class="pill">數字分解</span> ${pData.numText}`;
+                document.getElementById('varStep').innerHTML = `<span class="pill">變數分解</span> ${pData.varText}`;
+                
+                if (pData.hasNeg) {
+                    const warn = document.getElementById('warningTip');
+                    warn.innerHTML = pData.negNotice;
+                    warn.style.display = 'flex';
+                }
+
+                document.getElementById('analysisBox').style.display = 'block';
+
+                const btn = document.getElementById('actionBtn');
+                btn.innerText = '✨ 寫出括號內剩餘結果';
+                btn.style.background = 'linear-gradient(135deg, #1f6feb, #388bfd)';
+            }, 800);
+
+        } else if (step === 1) {
+            step = 2;
+            const remPart = document.getElementById('remPart');
+            remPart.innerHTML = pData.remHTML;
+            remPart.classList.add('show');
+
+            document.getElementById('machineStatus').innerText = '🎉 完整因式分解結果如下：';
+
+            const btn = document.getElementById('actionBtn');
+            btn.innerText = '🔄 挑戰下一題';
+            btn.style.background = 'linear-gradient(135deg, #8957e5, #a371f7)';
+        } else {
+            generateProblem();
+        }
+    }
+
+    window.onload = generateProblem;
+</script>
+
+</body>
+</html>
